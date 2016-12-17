@@ -23,6 +23,9 @@ public:
                       const char* disambiguation,
                       int n) const;
 
+    void save(const QString& path);
+    void load(const QString& path);
+
 public slots:
     void setLanguage(const QString& lang);
     void requestLanguageList();

@@ -11,6 +11,7 @@
 #include <QtCore/QEventLoop>
 #include <QtCore/QJsonArray>
 #include <QtCore/QThread>
+#include <QtCore/QFile>
 
 
 GTranslator::GTranslator(QObject* parent)
@@ -129,4 +130,70 @@ QString GTranslator::translate(const char* context,
     reply->setProperty("sourceText", sourceText);
 
     return sourceText;
+}
+
+void GTranslator::save(const QString& path)
+{
+    QMutexLocker locky(&qnamMutex);
+
+    // We have to remap cache to a QVariantMap because
+    // QHash<QString, QHash<QString, QString>> is not implicitly convertable
+    // to QHash<QString, QVariant>.
+    QVariantMap data;
+    auto languages = cache.keys();
+    for (auto language : languages) {
+        QVariantMap translations;
+        auto sourceTexts = cache[language].keys();
+        for (auto sourceText : sourceTexts)
+            translations[sourceText] = cache[language][sourceText];
+
+        data[language] = translations;
+    }
+
+    // Write the mapped data to the given path.
+    QFile output(path);
+    if (output.open(QIODevice::WriteOnly) == false) {
+        qCritical() << "Failed to open" << path << "for writing.";
+        return;
+    }
+
+    output.write(QJsonDocument::fromVariant(data).toJson());
+    output.close();
+}
+
+void GTranslator::load(const QString& path)
+{
+    QMutexLocker locky(&qnamMutex);
+
+    // Read the translation from the given path.
+    QFile input(path);
+    if (input.open(QIODevice::ReadOnly) == false) {
+        qCritical() << "Failed to open" << path << "for reading.";
+        return;
+    }
+
+    QByteArray raw = input.readAll();
+    input.close();
+
+    // Parse the JSON document.
+    QJsonParseError parseError;
+    auto document = QJsonDocument::fromJson(raw, &parseError);
+    if (parseError.error != QJsonParseError::NoError) {
+        qCritical() << "The given file at" << path << "is no valid JSON.";
+        return;
+    }
+
+    QHash<QString, QHash<QString, QString>> tmpCache;
+    auto languages = document.object().keys();
+    for (auto language : languages) {
+        QHash<QString, QString> translations;
+        auto sourceTexts = document.object().value(language).toObject().keys();
+        for (auto sourceText : sourceTexts)
+            translations[sourceText] = document.object().value(language)
+                    .toObject().value(sourceText).toString();
+
+        tmpCache[language] = translations;
+    }
+
+    cache = tmpCache;
 }
