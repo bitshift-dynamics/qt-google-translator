@@ -4,10 +4,10 @@ Simple Qt integration of the Google Translator API.
 This project provides the class GTranslator which can be used like the standard
 Qt class QTranslator. Just install it once (in this case, not per language) and
 then set the language you want your application translated to by calling
-GTranslator::setLanguage(const QString&).
+`GTranslator::setLanguage(const QString&)`.
 
 You may also get a list of supported languages by calling
-GTranslator::requestLanguageList().
+`GTranslator::requestLanguageList()`.
 
 ## Why this was made?
 Simply because we can and its a nice idea ;)
